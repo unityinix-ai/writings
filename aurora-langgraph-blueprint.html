@@ -1,0 +1,665 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}</style><style>.md-table{overflow-x:auto}@media print{.md-table{overflow-x:visible}}</style><style>:root{color-scheme:light dark;--md-bg:#fff;--md-text:rgba(0,0,0,.8);--md-muted:rgba(0,0,0,.6);--md-fill:rgba(0,0,0,.04);--md-fill-strong:rgba(0,0,0,.06);--md-rule:rgba(0,0,0,.1);--md-rule-strong:rgba(0,0,0,.16);--md-link:hsl(210 100% 45%)}@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){--md-bg:#0d0d0d;--md-text:rgba(255,255,255,.85);--md-muted:rgba(255,255,255,.6);--md-fill:rgba(255,255,255,.06);--md-fill-strong:rgba(255,255,255,.09);--md-rule:rgba(255,255,255,.14);--md-rule-strong:rgba(255,255,255,.22);--md-link:hsl(210 100% 72%)}}:root[data-theme="dark"]{color-scheme:dark;--md-bg:#0d0d0d;--md-text:rgba(255,255,255,.85);--md-muted:rgba(255,255,255,.6);--md-fill:rgba(255,255,255,.06);--md-fill-strong:rgba(255,255,255,.09);--md-rule:rgba(255,255,255,.14);--md-rule-strong:rgba(255,255,255,.22);--md-link:hsl(210 100% 72%)}:root[data-theme="light"]{color-scheme:light}@media print{:root,:root[data-theme="dark"]{color-scheme:light;--md-bg:#fff;--md-text:rgba(0,0,0,.8);--md-muted:rgba(0,0,0,.6);--md-fill:rgba(0,0,0,.04);--md-fill-strong:rgba(0,0,0,.06);--md-rule:rgba(0,0,0,.1);--md-rule-strong:rgba(0,0,0,.16);--md-link:hsl(210 100% 45%)}}body{background:var(--md-bg);color:var(--md-text);max-width:720px;margin:0 auto;padding:32px;display:flex;flex-direction:column;gap:10px;font:14px/1.55 -apple-system,BlinkMacSystemFont,'SF Pro','Segoe UI',sans-serif;overflow-wrap:break-word}body>:first-child{margin-top:0}h1,h2,h3,h4,h5,h6{margin:6px 0 0;line-height:1.25;font-weight:600;text-wrap:balance}h1{font-size:1.35em}h2{font-size:1.15em;color:var(--md-muted)}h3,h4,h5,h6{font-size:1em}p,ul,ol,blockquote,table,pre,hr{margin:0}strong{font-weight:600}a{color:var(--md-link);text-decoration:none}a:hover{text-decoration:underline}ul,ol{display:flex;flex-direction:column;gap:6px;padding-left:22px}ul{list-style:disc}ol{list-style:decimal}:is(li,td,th)>*+:is(p,ul,ol,blockquote){margin-top:6px}blockquote{display:flex;flex-direction:column;gap:10px;border-left:2px solid var(--md-rule);padding-left:10px;color:var(--md-muted)}:not(pre)>code{background:var(--md-fill);padding:1px 3px;border-radius:4px;font:.92em 'SF Mono',ui-monospace,Menlo,Consolas,monospace}a>code{background:none;color:inherit}pre{background:var(--md-fill);padding:10px 12px;border-radius:6px;overflow-x:auto;font:12px/1.5 'SF Mono',ui-monospace,Menlo,Consolas,monospace;margin-block:4px}pre code{background:none;padding:0;font:inherit}table{width:100%;border-collapse:separate;border-spacing:2px;font:inherit}th,td{padding:6px 8px;border-radius:3px;text-align:left;vertical-align:top}th{background:var(--md-fill-strong);font-weight:600}td{background:var(--md-fill)}:is(th,td) :not(pre)>code{background:transparent}hr{border:0;border-top:1px solid var(--md-rule-strong);margin-block:10px}img{max-width:100%;height:auto;border-radius:4px}</style>
+</head><body>
+<h1>Project Aurora — LangGraph Local Implementation Blueprint</h1>
+<h2>Overview</h2>
+<p>This is the complete blueprint for deploying Project Aurora as a <strong>local-first, agentic system</strong> using LangGraph (Anthropic's agent framework).</p>
+<p><strong>What it does:</strong></p>
+<ul>
+<li>Runs locally on your machine (your data, your control)</li>
+<li>Invokes three agents (Sevro/Tanjiro/4th Hokage) on any decision</li>
+<li>Maintains persistent audit trail (decision logs)</li>
+<li>Calls Claude API when needed (or runs locally with Ollama)</li>
+<li>Keeps everything versioned and auditable</li>
+</ul>
+<p><strong>Tech stack:</strong></p>
+<ul>
+<li>Python 3.10+</li>
+<li>LangGraph (agent orchestration)</li>
+<li>Claude API (reasoning)</li>
+<li>PostgreSQL (audit trail, optional)</li>
+<li>SQLite (local-only alternative)</li>
+<li>FastAPI (webhook endpoints, optional)</li>
+</ul>
+<hr>
+<h2>Project Structure</h2>
+<pre><code>project-aurora/
+├── aurora/
+│   ├── __init__.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── payload.py          # Payload protocol (load/validate/version)
+│   │   ├── agents.py            # Sevro, Tanjiro, 4th Hokage definitions
+│   │   └── decision.py          # Decision logic + integration
+│   ├── persistence/
+│   │   ├── __init__.py
+│   │   ├── memory.py            # Local memory storage (SQLite)
+│   │   ├── audit.py             # Decision audit trail
+│   │   └── versioning.py        # Payload version control
+│   ├── workflow/
+│   │   ├── __init__.py
+│   │   ├── graph.py             # LangGraph workflow definition
+│   │   └── nodes.py             # Individual agent nodes
+│   └── utils/
+│       ├── __init__.py
+│       ├── logger.py
+│       └── config.py
+├── examples/
+│   ├── sample_decisions.py      # Example: career, technical, personal
+│   └── test_payload.yaml        # Test payload for validation
+├── tests/
+│   ├── test_agents.py
+│   ├── test_payload.py
+│   └── test_integration.py
+├── requirements.txt
+├── README.md
+├── .env.example
+└── payload.yaml                 # Your Aurora payload (git-tracked)
+</code></pre>
+<hr>
+<h2>Core Files Explained</h2>
+<h3>1. <code>aurora/core/payload.py</code> — Payload Protocol Handler</h3>
+<pre><code class="language-python"># aurora/core/payload.py
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional, List, Dict, Any
+import yaml
+import json
+import hashlib
+
+@dataclass
+class PayloadMetadata:
+    owner: str
+    mission_name: str
+    created_date: datetime
+    last_updated: datetime
+    checksum: str
+    location: str
+    version: str
+
+@dataclass
+class Mind:
+    who_decides: str
+    judgment_criteria: List[Dict[str, Any]]
+    standing_directives: List[Dict[str, Any]]
+    decision_log: List[Dict[str, Any]]
+    escalation_rule: str
+
+@dataclass
+class Heart:
+    mission_name: str
+    why: str  # Critical: cannot be empty
+    what_we_protect: str
+    what_we_build_toward: str
+    continuity_markers: List[str]
+    last_known_state: Dict[str, Any]
+
+@dataclass
+class Shield:
+    self_healing_protocols: Dict[str, Any]
+    known_failure_log: List[Dict[str, Any]]
+    maintenance_protocol: Dict[str, Any]
+
+@dataclass
+class AuroraPayload:
+    &#34;&#34;&#34;Production-ready Aurora payload with validation&#34;&#34;&#34;
+    version: str
+    metadata: PayloadMetadata
+    mind: Mind
+    heart: Heart
+    shield: Shield
+    audit: Dict[str, Any]
+    
+    @classmethod
+    def from_yaml(cls, filepath: str) -&gt; &#34;AuroraPayload&#34;:
+        &#34;&#34;&#34;Load and validate payload from YAML&#34;&#34;&#34;
+        with open(filepath) as f:
+            data = yaml.safe_load(f)
+        
+        # Validate required fields
+        assert data[&#34;heart&#34;][&#34;why&#34;], &#34;WHY field cannot be empty&#34;
+        assert data[&#34;mind&#34;][&#34;who_decides&#34;], &#34;who_decides required&#34;
+        
+        # Parse nested structures
+        metadata = PayloadMetadata(**data[&#34;metadata&#34;])
+        mind = Mind(**data[&#34;mind&#34;])
+        heart = Heart(**data[&#34;heart&#34;])
+        shield = Shield(**data[&#34;shield&#34;])
+        
+        return cls(
+            version=data[&#34;version&#34;],
+            metadata=metadata,
+            mind=mind,
+            heart=heart,
+            shield=shield,
+            audit=data.get(&#34;audit&#34;, {})
+        )
+    
+    def compute_checksum(self) -&gt; str:
+        &#34;&#34;&#34;SHA256 of (version + mind + heart) for integrity&#34;&#34;&#34;
+        content = (
+            self.version +
+            json.dumps(vars(self.mind), default=str) +
+            json.dumps(vars(self.heart), default=str)
+        )
+        return hashlib.sha256(content.encode()).hexdigest()
+    
+    def to_yaml(self, filepath: str) -&gt; None:
+        &#34;&#34;&#34;Write payload to YAML with updated metadata&#34;&#34;&#34;
+        self.metadata.last_updated = datetime.now()
+        self.metadata.checksum = self.compute_checksum()
+        
+        data = {
+            &#34;version&#34;: self.version,
+            &#34;metadata&#34;: vars(self.metadata),
+            &#34;mind&#34;: vars(self.mind),
+            &#34;heart&#34;: vars(self.heart),
+            &#34;shield&#34;: vars(self.shield),
+            &#34;audit&#34;: self.audit
+        }
+        
+        with open(filepath, &#39;w&#39;) as f:
+            yaml.dump(data, f, sort_keys=False)
+</code></pre>
+<hr>
+<h3>2. <code>aurora/core/agents.py</code> — Agent Definitions</h3>
+<pre><code class="language-python"># aurora/core/agents.py
+
+from enum import Enum
+from typing import Optional
+from langchain.prompts import ChatPromptTemplate
+from langchain.llms.base import BaseLLM
+
+class AgentType(Enum):
+    SEVRO = &#34;sevro&#34;
+    TANJIRO = &#34;tanjiro&#34;
+    HOKAGE = &#34;hokage&#34;
+
+class Agent:
+    &#34;&#34;&#34;Base agent class&#34;&#34;&#34;
+    def __init__(self, agent_type: AgentType, llm: BaseLLM):
+        self.agent_type = agent_type
+        self.llm = llm
+        self.analysis = None
+    
+    async def analyze(self, problem: str) -&gt; str:
+        raise NotImplementedError
+
+class Sevro(Agent):
+    &#34;&#34;&#34;Strategic Executor&#34;&#34;&#34;
+    
+    NAME = &#34;Sevro&#34;
+    ROLE = &#34;Strategic Executor&#34;
+    DESCRIPTION = &#34;&#34;&#34;
+    You are Sevro, the Strategic Executor. You think in systems, leverage points,
+    and durable strategies.
+    
+    When analyzing a problem:
+    1. Map the system: What are all the moving parts?
+    2. Identify constraints: What limits options?
+    3. Find leverage points: Where can minimal effort = maximal impact?
+    4. Assess risks: What could break? How do we recover?
+    5. Recommend the durable path: What scales and lasts?
+    
+    Speak with clarity and precision. Use data when available.
+    Acknowledge trade-offs. Be realistic about costs.
+    &#34;&#34;&#34;
+    
+    prompt = ChatPromptTemplate.from_template(&#34;&#34;&#34;
+{system_prompt}
+
+PROBLEM: {problem}
+
+Your analysis (2-3 paragraphs, then recommendation):
+&#34;&#34;&#34;)
+    
+    def __init__(self, llm: BaseLLM):
+        super().__init__(AgentType.SEVRO, llm)
+    
+    async def analyze(self, problem: str) -&gt; str:
+        &#34;&#34;&#34;Sevro&#39;s strategic analysis&#34;&#34;&#34;
+        chain = self.prompt | self.llm
+        response = await chain.ainvoke({
+            &#34;system_prompt&#34;: self.DESCRIPTION,
+            &#34;problem&#34;: problem
+        })
+        self.analysis = response.content
+        return self.analysis
+
+class Tanjiro(Agent):
+    &#34;&#34;&#34;Intuitive Adapter&#34;&#34;&#34;
+    
+    NAME = &#34;Tanjiro&#34;
+    ROLE = &#34;Intuitive Adapter&#34;
+    DESCRIPTION = &#34;&#34;&#34;
+    You are Tanjiro, the Intuitive Adapter. You think through empathy, resilience,
+    and what things actually mean to the people involved.
+    
+    When analyzing a problem:
+    1. Feel the situation: What&#39;s the human truth here?
+    2. Identify actual needs: What do people really need (not want)?
+    3. Check sustainability: Is this something we can persist through?
+    4. Find meaning: What growth or understanding is available?
+    5. Recommend the humane path: What honors people while moving forward?
+    
+    Speak with compassion and honesty. Acknowledge emotional reality.
+    Be realistic about human capacity. Find the meaning in struggle.
+    &#34;&#34;&#34;
+    
+    prompt = ChatPromptTemplate.from_template(&#34;&#34;&#34;
+{system_prompt}
+
+PROBLEM: {problem}
+
+Your analysis (2-3 paragraphs, then recommendation):
+&#34;&#34;&#34;)
+    
+    def __init__(self, llm: BaseLLM):
+        super().__init__(AgentType.TANJIRO, llm)
+    
+    async def analyze(self, problem: str) -&gt; str:
+        &#34;&#34;&#34;Tanjiro&#39;s empathetic analysis&#34;&#34;&#34;
+        chain = self.prompt | self.llm
+        response = await chain.ainvoke({
+            &#34;system_prompt&#34;: self.DESCRIPTION,
+            &#34;problem&#34;: problem
+        })
+        self.analysis = response.content
+        return self.analysis
+
+class FourthHokage(Agent):
+    &#34;&#34;&#34;Visionary Leader&#34;&#34;&#34;
+    
+    NAME = &#34;4th Hokage&#34;
+    ROLE = &#34;Visionary Leader&#34;
+    DESCRIPTION = &#34;&#34;&#34;
+    You are the Fourth Hokage, the Visionary Leader. You think in arcs, legacy,
+    and what becomes possible when we think bigger.
+    
+    When analyzing a problem:
+    1. See the larger arc: What is this decision part of?
+    2. Ask deeper questions: What are we building toward? Why does it matter?
+    3. Identify legacy implications: What survives this decision?
+    4. Expand possibility space: What becomes possible if we think differently?
+    5. Recommend the transcendent path: How does this serve something beyond ourselves?
+    
+    Speak with wisdom and vision. Connect immediate decisions to larger meaning.
+    Think in 5+ year arcs. Inspire through clarity of purpose.
+    &#34;&#34;&#34;
+    
+    prompt = ChatPromptTemplate.from_template(&#34;&#34;&#34;
+{system_prompt}
+
+PROBLEM: {problem}
+
+Your analysis (2-3 paragraphs, then recommendation):
+&#34;&#34;&#34;)
+    
+    def __init__(self, llm: BaseLLM):
+        super().__init__(AgentType.FourthHokage, llm)
+    
+    async def analyze(self, problem: str) -&gt; str:
+        &#34;&#34;&#34;4th Hokage&#39;s visionary analysis&#34;&#34;&#34;
+        chain = self.prompt | self.llm
+        response = await chain.ainvoke({
+            &#34;system_prompt&#34;: self.DESCRIPTION,
+            &#34;problem&#34;: problem
+        })
+        self.analysis = response.content
+        return self.analysis
+
+class AgentTeam:
+    &#34;&#34;&#34;All three agents working together&#34;&#34;&#34;
+    
+    def __init__(self, llm: BaseLLM):
+        self.sevro = Sevro(llm)
+        self.tanjiro = Tanjiro(llm)
+        self.hokage = FourthHokage(llm)
+    
+    async def analyze(self, problem: str) -&gt; dict:
+        &#34;&#34;&#34;Invoke all three agents in parallel&#34;&#34;&#34;
+        sevro_task = self.sevro.analyze(problem)
+        tanjiro_task = self.tanjiro.analyze(problem)
+        hokage_task = self.hokage.analyze(problem)
+        
+        sevro_analysis, tanjiro_analysis, hokage_analysis = await asyncio.gather(
+            sevro_task, tanjiro_task, hokage_task
+        )
+        
+        return {
+            &#34;sevro&#34;: sevro_analysis,
+            &#34;tanjiro&#34;: tanjiro_analysis,
+            &#34;hokage&#34;: hokage_analysis
+        }
+</code></pre>
+<hr>
+<h3>3. <code>aurora/core/decision.py</code> — Decision Integration</h3>
+<pre><code class="language-python"># aurora/core/decision.py
+
+import asyncio
+import uuid
+from datetime import datetime
+from typing import Dict, Any, Optional
+from .agents import AgentTeam
+from .payload import AuroraPayload
+
+class Decision:
+    &#34;&#34;&#34;Represents a single decision with full reasoning&#34;&#34;&#34;
+    
+    def __init__(
+        self,
+        problem: str,
+        payload: AuroraPayload,
+        agent_analyses: Dict[str, str],
+        integrated_recommendation: str
+    ):
+        self.id = str(uuid.uuid4())
+        self.timestamp = datetime.now()
+        self.problem = problem
+        self.agent_analyses = agent_analyses
+        self.integrated_recommendation = integrated_recommendation
+    
+    def to_dict(self) -&gt; Dict[str, Any]:
+        return {
+            &#34;decision_id&#34;: self.id,
+            &#34;timestamp&#34;: self.timestamp.isoformat(),
+            &#34;problem&#34;: self.problem,
+            &#34;sevro_analysis&#34;: self.agent_analyses[&#34;sevro&#34;],
+            &#34;tanjiro_analysis&#34;: self.agent_analyses[&#34;tanjiro&#34;],
+            &#34;hokage_analysis&#34;: self.agent_analyses[&#34;hokage&#34;],
+            &#34;integrated_recommendation&#34;: self.integrated_recommendation,
+            &#34;outcome_status&#34;: &#34;pending&#34;  # Updated later
+        }
+
+class DecisionMaker:
+    &#34;&#34;&#34;Orchestrates the three-agent decision protocol&#34;&#34;&#34;
+    
+    def __init__(self, payload: AuroraPayload, agent_team: AgentTeam):
+        self.payload = payload
+        self.agents = agent_team
+    
+    async def decide(self, problem: str) -&gt; Decision:
+        &#34;&#34;&#34;
+        Run full three-agent decision protocol:
+        1. Invoke all three agents in parallel
+        2. Analyze tensions and conflicts
+        3. Integrate recommendations
+        4. Log to audit trail
+        &#34;&#34;&#34;
+        
+        # Step 1: Get all three perspectives
+        print(f&#34;[Aurora] Invoking three agents on: {problem[:100]}...&#34;)
+        analyses = await self.agents.analyze(problem)
+        
+        # Step 2: Integrate (this could use another LLM call for synthesis)
+        integrated = await self._integrate(problem, analyses)
+        
+        # Step 3: Create decision object
+        decision = Decision(
+            problem=problem,
+            payload=self.payload,
+            agent_analyses=analyses,
+            integrated_recommendation=integrated
+        )
+        
+        # Step 4: Log to audit trail
+        await self._log_decision(decision)
+        
+        return decision
+    
+    async def _integrate(self, problem: str, analyses: Dict[str, str]) -&gt; str:
+        &#34;&#34;&#34;
+        Synthesize all three analyses into integrated recommendation.
+        Could be deterministic or use LLM synthesis.
+        &#34;&#34;&#34;
+        # Deterministic for now; could call LLM if desired
+        integration_prompt = f&#34;&#34;&#34;
+Given three perspectives on this problem:
+
+PROBLEM: {problem}
+
+SEVRO (Strategic): {analyses[&#39;sevro&#39;][:500]}...
+
+TANJIRO (Empathetic): {analyses[&#39;tanjiro&#39;][:500]}...
+
+4TH HOKAGE (Visionary): {analyses[&#39;hokage&#39;][:500]}...
+
+Synthesize these into an integrated recommendation that honors all three voices.
+List the decision, rationale, and which agent owns which part of execution.
+&#34;&#34;&#34;
+        # For production, call LLM here
+        return &#34;INTEGRATED DECISION: [synthesis placeholder]&#34;
+    
+    async def _log_decision(self, decision: Decision) -&gt; None:
+        &#34;&#34;&#34;Add decision to audit trail&#34;&#34;&#34;
+        decision_record = decision.to_dict()
+        
+        # Add to payload&#39;s audit trail (in-memory for now)
+        if &#34;decision_trail&#34; not in self.payload.audit:
+            self.payload.audit[&#34;decision_trail&#34;] = []
+        
+        self.payload.audit[&#34;decision_trail&#34;].append(decision_record)
+        print(f&#34;[Aurora] Decision logged: {decision.id}&#34;)
+</code></pre>
+<hr>
+<h3>4. <code>aurora/workflow/graph.py</code> — LangGraph Workflow</h3>
+<pre><code class="language-python"># aurora/workflow/graph.py
+
+from langgraph.graph import StateGraph, END
+from typing import TypedDict, List, Any
+import asyncio
+
+class AuroraState(TypedDict):
+    &#34;&#34;&#34;State object passed through the workflow&#34;&#34;&#34;
+    problem: str
+    sevro_analysis: str
+    tanjiro_analysis: str
+    hokage_analysis: str
+    integrated_decision: str
+    decision_id: str
+
+def create_aurora_workflow(decision_maker):
+    &#34;&#34;&#34;Build the LangGraph workflow&#34;&#34;&#34;
+    
+    workflow = StateGraph(AuroraState)
+    
+    # Node 1: Receive problem
+    def receive_problem(state):
+        print(f&#34;[Workflow] Received: {state[&#39;problem&#39;][:100]}...&#34;)
+        return state
+    
+    # Node 2: Run Sevro
+    async def run_sevro(state):
+        analysis = await decision_maker.agents.sevro.analyze(state[&#34;problem&#34;])
+        state[&#34;sevro_analysis&#34;] = analysis
+        return state
+    
+    # Node 3: Run Tanjiro
+    async def run_tanjiro(state):
+        analysis = await decision_maker.agents.tanjiro.analyze(state[&#34;problem&#34;])
+        state[&#34;tanjiro_analysis&#34;] = analysis
+        return state
+    
+    # Node 4: Run 4th Hokage
+    async def run_hokage(state):
+        analysis = await decision_maker.agents.hokage.analyze(state[&#34;problem&#34;])
+        state[&#34;hokage_analysis&#34;] = analysis
+        return state
+    
+    # Node 5: Integrate
+    async def integrate(state):
+        recommendation = await decision_maker._integrate(
+            state[&#34;problem&#34;],
+            {
+                &#34;sevro&#34;: state[&#34;sevro_analysis&#34;],
+                &#34;tanjiro&#34;: state[&#34;tanjiro_analysis&#34;],
+                &#34;hokage&#34;: state[&#34;hokage_analysis&#34;]
+            }
+        )
+        state[&#34;integrated_decision&#34;] = recommendation
+        return state
+    
+    # Add nodes
+    workflow.add_node(&#34;receive&#34;, receive_problem)
+    workflow.add_node(&#34;sevro&#34;, run_sevro)
+    workflow.add_node(&#34;tanjiro&#34;, run_tanjiro)
+    workflow.add_node(&#34;hokage&#34;, run_hokage)
+    workflow.add_node(&#34;integrate&#34;, integrate)
+    
+    # Define edges (nodes run in parallel, then integrate)
+    workflow.add_edge(&#34;receive&#34;, &#34;sevro&#34;)
+    workflow.add_edge(&#34;receive&#34;, &#34;tanjiro&#34;)
+    workflow.add_edge(&#34;receive&#34;, &#34;hokage&#34;)
+    workflow.add_edge(&#34;sevro&#34;, &#34;integrate&#34;)
+    workflow.add_edge(&#34;tanjiro&#34;, &#34;integrate&#34;)
+    workflow.add_edge(&#34;hokage&#34;, &#34;integrate&#34;)
+    workflow.add_edge(&#34;integrate&#34;, END)
+    
+    # Set entry point
+    workflow.set_entry_point(&#34;receive&#34;)
+    
+    return workflow.compile()
+</code></pre>
+<hr>
+<h2>Installation &amp; Setup</h2>
+<h3>Step 1: Clone &amp; Install</h3>
+<pre><code class="language-bash">git clone https://github.com/yourusername/project-aurora.git
+cd project-aurora
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+</code></pre>
+<h3>Step 2: Create <code>.env</code></h3>
+<pre><code class="language-bash"># .env
+ANTHROPIC_API_KEY=sk-...
+AURORA_DATA_DIR=~/.aurora
+AURORA_LOG_LEVEL=INFO
+</code></pre>
+<h3>Step 3: Copy Payload</h3>
+<pre><code class="language-bash"># Place your aurora_payload.yaml in project root
+cp ~/your-payload.yaml ./payload.yaml
+</code></pre>
+<h3>Step 4: Run</h3>
+<pre><code class="language-python"># main.py
+import asyncio
+from aurora.core.payload import AuroraPayload
+from aurora.core.agents import AgentTeam
+from aurora.core.decision import DecisionMaker
+from langchain_anthropic import ChatAnthropic
+
+async def main():
+    # Load payload
+    payload = AuroraPayload.from_yaml(&#34;payload.yaml&#34;)
+    print(f&#34;[Aurora] Loaded: {payload.metadata.mission_name}&#34;)
+    
+    # Initialize LLM
+    llm = ChatAnthropic(model=&#34;claude-3-5-sonnet-20241022&#34;)
+    
+    # Create agents
+    agents = AgentTeam(llm)
+    
+    # Create decision maker
+    decision_maker = DecisionMaker(payload, agents)
+    
+    # Example decision
+    problem = &#34;Should I go public with Project Aurora on GitHub?&#34;
+    decision = await decision_maker.decide(problem)
+    
+    # Print results
+    print(f&#34;\nDECISION: {decision.id}&#34;)
+    print(f&#34;SEVRO: {decision.agent_analyses[&#39;sevro&#39;][:200]}...&#34;)
+    print(f&#34;TANJIRO: {decision.agent_analyses[&#39;tanjiro&#39;][:200]}...&#34;)
+    print(f&#34;4TH HOKAGE: {decision.agent_analyses[&#39;hokage&#39;][:200]}...&#34;)
+    print(f&#34;\nINTEGRATED: {decision.integrated_recommendation}&#34;)
+    
+    # Save updated payload
+    payload.to_yaml(&#34;payload.yaml&#34;)
+
+if __name__ == &#34;__main__&#34;:
+    asyncio.run(main())
+</code></pre>
+<hr>
+<h2>Deployment Checklist</h2>
+<ul>
+<li>
+<p><input disabled="" type="checkbox"> <strong>Development (Local)</strong></p>
+<ul>
+<li><input disabled="" type="checkbox"> <code>poetry install</code> works</li>
+<li><input disabled="" type="checkbox"> <code>pytest</code> passes</li>
+<li><input disabled="" type="checkbox"> Single decision runs end-to-end</li>
+<li><input disabled="" type="checkbox"> Payload loads and validates</li>
+<li><input disabled="" type="checkbox"> Audit trail logs correctly</li>
+</ul>
+</li>
+<li>
+<p><input disabled="" type="checkbox"> <strong>Staging (Your Machine)</strong></p>
+<ul>
+<li><input disabled="" type="checkbox"> 5+ real decisions tested</li>
+<li><input disabled="" type="checkbox"> Memory storage working</li>
+<li><input disabled="" type="checkbox"> Payload versioning verified</li>
+<li><input disabled="" type="checkbox"> Claude API calls working</li>
+</ul>
+</li>
+<li>
+<p><input disabled="" type="checkbox"> <strong>Production (Deployed)</strong></p>
+<ul>
+<li><input disabled="" type="checkbox"> GitHub repo public</li>
+<li><input disabled="" type="checkbox"> README complete</li>
+<li><input disabled="" type="checkbox"> Examples runnable</li>
+<li><input disabled="" type="checkbox"> Decision logs persisting</li>
+<li><input disabled="" type="checkbox"> Maintenance plan documented</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2>Key Files Summary</h2>
+<div class="md-table" role="region" aria-label="Table" tabindex="0"><table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aurora/core/payload.py</code></td>
+<td>Load/validate/version payloads</td>
+<td>✓ Template ready</td>
+</tr>
+<tr>
+<td><code>aurora/core/agents.py</code></td>
+<td>Sevro/Tanjiro/4th Hokage</td>
+<td>✓ Template ready</td>
+</tr>
+<tr>
+<td><code>aurora/core/decision.py</code></td>
+<td>Decision orchestration</td>
+<td>✓ Template ready</td>
+</tr>
+<tr>
+<td><code>aurora/workflow/graph.py</code></td>
+<td>LangGraph workflow</td>
+<td>✓ Template ready</td>
+</tr>
+<tr>
+<td><code>aurora/persistence/memory.py</code></td>
+<td>Local audit trail storage</td>
+<td>⏳ To implement</td>
+</tr>
+<tr>
+<td><code>requirements.txt</code></td>
+<td>Dependencies</td>
+<td>⏳ To create</td>
+</tr>
+<tr>
+<td><code>tests/test_agents.py</code></td>
+<td>Agent testing</td>
+<td>⏳ To create</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>This is your roadmap. Deploy it, test it, make it yours.</p>
+
+</body></html>
